@@ -1,0 +1,15 @@
+[package]
+name = "stubborn-sink"
+version = "0.1.0"
+authors = ["Danilo Silva <badkill82@gmail.com>"]
+
+[dependencies]
+futures = "~0.1.10"
+tokio-core = "~0.1"
+tokio-service = "~0.1"
+tokio-proto = "~0.1"
+tokio-timer = "~0.1"
+tokio-line = {git="https://github.com/tokio-rs/tokio-line"}
+getopts = "0.2"
+log = "*"
+env_logger = "*"
