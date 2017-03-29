@@ -20,8 +20,18 @@ use tokio_core::net::{TcpListener};
 use tokio_core::reactor::{Core};
 use tokio_line::LineCodec;
 
+fn print_usage(program: &str, opts: Options) {
+    let brief = format!("Usage: {} FILE [options]", program);
+    print!("{}", opts.usage(&brief));
+}
+
 fn main() {
     env_logger::init().unwrap();
+
+    let configuration = match handle_options() {
+        Some(config) => config,
+        None => return
+    };
 
     let mut core = Core::new().unwrap();
     let handle = core.handle();
@@ -34,9 +44,7 @@ fn main() {
      */
     let (buftx, bufrx) = mpsc::unbounded();
 
-
-
-    let address = "0.0.0.0:12345".parse().unwrap();
+    let address = configuration.listen_on.parse().unwrap();
     let listener = TcpListener::bind(&address, &core.handle()).unwrap();
     let connections = listener.incoming();
 
@@ -57,9 +65,7 @@ fn main() {
 
 
 
-
-
-    let stubborn_sink = StubbornSink::new(handle.clone());
+    let stubborn_sink = StubbornSink::new(configuration.connect_to.parse().unwrap(), handle.clone());
     let f =
         bufrx.fold(stubborn_sink,
                    |stubborn_sink, message| stubborn_sink.send(message).map_err(|_| ()));
@@ -67,6 +73,47 @@ fn main() {
     handle.spawn(f.map(|_| ()).map_err(|_| ()));
 
     core.run(server).unwrap();
+}
+
+struct Conf {
+    listen_on: String,
+    connect_to: String,
+}
+
+fn handle_options() -> Option<Conf> {
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut opts = Options::new();
+    opts.optopt("l", "listen", "port on where listening", "PORT");
+    opts.optopt("d", "destination", "remote address on where sends data", "ADDRESS:PORT");
+    opts.optflag("h", "help", "print this help menu");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => { m }
+        Err(f) => {
+            println!("{}\n", f);
+            print_usage(&program, opts);
+            return None;
+        }
+    };
+    if matches.opt_present("h") {
+        print_usage(&program, opts);
+        return None;
+    }
+
+    let listen_on = matches.opt_str("l");
+    let connect_to = matches.opt_str("d");
+
+    if listen_on.is_none() || connect_to.is_none() {
+        print_usage(&program, opts);
+        return None;
+    }
+
+    Some(Conf{
+        listen_on: listen_on.unwrap(),
+        connect_to: connect_to.unwrap(),
+    })
 }
 
 // fn simulated_messaging_receiving_from_clients(buftx: UnboundedSender<String>,

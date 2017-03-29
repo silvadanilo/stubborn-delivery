@@ -8,6 +8,7 @@ use tokio_core::reactor::{Handle};
 use tokio_line::LineCodec;
 use std::{self, io, str, fmt, thread, time};
 use std::string::String;
+use std::net::SocketAddr;
 
 enum RemoteConnectionState {
     NotConnected,
@@ -38,9 +39,9 @@ pub struct StubbornSink {
 }
 
 impl StubbornSink {
-    pub fn new(handle: Handle) -> Self {
+    pub fn new(remote_addr: SocketAddr, handle: Handle) -> Self {
         StubbornSink {
-            remote_addr: "127.0.0.1:5551".parse().unwrap(), //TODO:! addess and port should be dynamic
+            remote_addr: remote_addr,
             status: RemoteConnectionState::NotConnected,
             handle: handle,
         }
