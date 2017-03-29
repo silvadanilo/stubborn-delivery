@@ -7,18 +7,17 @@ extern crate tokio_line;
 extern crate getopts;
 
 mod stubborn_sink;
+mod server;
 
 use futures::future::Future;
 use futures::sync::mpsc::{self};
-use futures::{Stream, Sink};
+use futures::{Stream};
 use getopts::Options;
 use std::env;
-use std::io::{self, ErrorKind};
 use stubborn_sink::StubbornSink;
-use tokio_core::io::{Io};
-use tokio_core::net::{TcpListener};
+use std::io::{self, ErrorKind};
+use server::Server;
 use tokio_core::reactor::{Core};
-use tokio_line::LineCodec;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -33,9 +32,6 @@ fn main() {
         None => return
     };
 
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
-
     /**
      * every connected client receives a clone of buftx where to sends data
      * all received data are read from bufrx and sent the StubbornSink which will try to
@@ -44,38 +40,34 @@ fn main() {
      */
     let (buftx, bufrx) = mpsc::unbounded();
 
-    let address = configuration.listen_on.parse().unwrap();
-    let listener = TcpListener::bind(&address, &core.handle()).unwrap();
-    let connections = listener.incoming();
+    let mut core = Core::new().unwrap();
+    let handle = core.handle();
 
-    let server = connections.for_each(|(socket, _)| {
-        let transport = socket.framed(LineCodec);
+    let stubborn_sink = StubbornSink::new(
+        configuration.connect_to.parse().unwrap(),
+        handle.clone()
+    );
 
-        let nonhocapitoperchedevoclonarlo = buftx.clone();
-        let process_connection = transport.for_each(move |line| {
-            nonhocapitoperchedevoclonarlo.clone().send(line)
-                .map_err(|err| io::Error::new(ErrorKind::Other, err))
-                .map(|_| ())
-        });
+    /**
+     * sends all data received by clients to the remote server
+     */
+    let forwarding = bufrx
+        .map_err(|_| io::Error::new(ErrorKind::Other, "should never happens"))
+        .forward(stubborn_sink)
+    ;
+    handle.spawn(forwarding.map(|_| ()).map_err(|_| ()));
 
-        handle.spawn(process_connection.map_err(|_| ()));
+    /**
+     * listening for client connections
+     */
+    let server = Server::new(configuration.clone(), handle.clone(), buftx.clone());
+    let listening = server.accept_connection();
 
-        Ok(())
-    });
-
-
-
-    let stubborn_sink = StubbornSink::new(configuration.connect_to.parse().unwrap(), handle.clone());
-    let f =
-        bufrx.fold(stubborn_sink,
-                   |stubborn_sink, message| stubborn_sink.send(message).map_err(|_| ()));
-
-    handle.spawn(f.map(|_| ()).map_err(|_| ()));
-
-    core.run(server).unwrap();
+    core.run(listening).unwrap();
 }
 
-struct Conf {
+#[derive(Clone)]
+pub struct Conf {
     listen_on: String,
     connect_to: String,
 }

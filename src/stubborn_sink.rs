@@ -79,6 +79,7 @@ impl StubbornSink {
                 Ok(())
             })
             .and_then(|_| {
+                //TODO:! try to update the sink status to NotConnected!
                 info!("Connection with remote server is lost");
                 Ok(())
             });
