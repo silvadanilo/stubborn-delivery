@@ -51,7 +51,8 @@ fn main() {
     /**
      * sends all data received by clients to the remote server
      */
-    let forwarding = bufrx.map_err(|_| io::Error::new(ErrorKind::Other, "should never happens"))
+    let forwarding = bufrx
+        .map_err(|_| io::Error::new(ErrorKind::Other, "should never happens"))
         .forward(stubborn_sink);
     handle.spawn(forwarding.map(|_| ()).map_err(|_| ()));
 
@@ -76,10 +77,7 @@ fn handle_options() -> Option<Conf> {
 
     let mut opts = Options::new();
     opts.optopt("l", "listen", "port on where listening", "PORT");
-    opts.optopt("d",
-                "destination",
-                "remote address on where sends data",
-                "ADDRESS:PORT");
+    opts.optopt("d", "destination", "remote address on where sends data", "ADDRESS:PORT");
     opts.optflag("h", "help", "print this help menu");
 
     let matches = match opts.parse(&args[1..]) {
@@ -104,7 +102,7 @@ fn handle_options() -> Option<Conf> {
     }
 
     Some(Conf {
-             listen_on: listen_on.unwrap(),
-             connect_to: connect_to.unwrap(),
-         })
+        listen_on: listen_on.unwrap(),
+        connect_to: connect_to.unwrap(),
+    })
 }
