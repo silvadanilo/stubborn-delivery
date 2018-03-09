@@ -13,3 +13,6 @@ tokio-line = {git="https://github.com/tokio-rs/tokio-line"}
 getopts = "0.2"
 log = "*"
 env_logger = "*"
+
+[dev-dependencies]
+quickcheck = "0.6"
